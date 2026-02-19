@@ -4,7 +4,10 @@ import { CommandRegistry,
          handlerLogin, 
          handlerRegister, 
          handlerReset,
-         handlerGetUsers, 
+         handlerGetUsers,
+         handlerAgg,
+         handlerAddFeed,
+         handlerGetFeeds,
          runCommand } from "./commands/commandHandler.js";
 
 import { argv, exit } from "process";
@@ -16,6 +19,9 @@ async function main() {
     registerCommand(registry, "register", handlerRegister);
     registerCommand(registry, "reset", handlerReset);
     registerCommand(registry, "users", handlerGetUsers);
+    registerCommand(registry, "agg", handlerAgg);
+    registerCommand(registry, "addfeed", handlerAddFeed);
+    registerCommand(registry, "feeds", handlerGetFeeds);
 
     const args = argv.slice(2);
     if (args.length === 0) {

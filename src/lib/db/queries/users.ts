@@ -1,3 +1,4 @@
+import { uuid } from "drizzle-orm/gel-core";
 import { db } from "..";
 import { users } from "../schema";
 import { eq } from "drizzle-orm"
@@ -15,6 +16,11 @@ export async function getUser(name: string) {
 export async function resetUsers() {
     await db.delete(users);
     console.log("Deleted successfully");
+}
+
+export async function getUsersById(id: any){
+    const results = await db.select().from(users).where(eq(users.id, id))
+    return results;
 }
 
 export async function getUsers() {
