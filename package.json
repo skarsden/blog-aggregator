@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx ./src/index.ts",
+    "db": "sudo -u postgres psql",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate"
   },
