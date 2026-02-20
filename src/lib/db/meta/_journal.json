@@ -15,6 +15,13 @@
       "when": 1771531948746,
       "tag": "0001_bored_fantastic_four",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1771609025127,
+      "tag": "0002_clear_killer_shrike",
+      "breakpoints": true
     }
   ]
 }

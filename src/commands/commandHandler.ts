@@ -2,12 +2,13 @@ import { setUser } from "src/config";
 import { createUser, getUser, getUsers, resetUsers, getUsersById } from "../lib/db/queries/users.js";
 import { readConfig } from "../config.js";
 import { fetchFeed } from "src/lib/rss.js";
-import { createFeed, getFeeds } from "src/lib/db/queries/feeds.js";
+import { createFeed, getFeeds, getFeedByURL, resetFeed } from "src/lib/db/queries/feeds.js";
 import { Feed, User } from "src/lib/db/schema.js";
+import { createFeedFollows, deleteByUserAndURL, getFeedFollowsForUser, resetFeedFollow } from "src/lib/db/queries/feedFollows.js";
 
 export type CommandRegistry = Record<string, CommandHandler>;
 
-type CommandHandler = (cmdName: string, ...args: string[]) => Promise<void>;
+export type CommandHandler = (cmdName: string, ...args: string[]) => Promise<void>;
 
 export function registerCommand(registry: CommandRegistry, cmdName: string, handler: CommandHandler) {
     registry[cmdName] = handler;
@@ -22,20 +23,6 @@ export async function runCommand(registry: CommandRegistry, cmdName:string, ...a
 
 
 //Command definitions----------------------------------------------------------
-export async function handlerLogin(cmdName: string, ...args: string[]) {
-    if (args.length === 0) {
-        throw new Error(`Usage: ${cmdName} <name>`);
-    }
-    
-    const name = args[0];
-    const existingUser = await getUser(name);
-    if (!existingUser) {
-        throw new Error(`User ${name} not found`);
-    }
-    setUser(existingUser.name);
-    console.log(`User '${name} has been set`);
-};
-
 export async function handlerRegister(cmdName: string, ...args: string[]) {
     if (args.length === 0) {
         throw new Error(`Usage: ${cmdName} <name>`);
@@ -52,7 +39,25 @@ export async function handlerRegister(cmdName: string, ...args: string[]) {
 
 export async function handlerReset() {
     await resetUsers();
+    await resetFeed();
+    await resetFeedFollow();
 }
+
+//User Commands--------------------------------------------------------------
+export async function handlerLogin(cmdName: string, ...args: string[]) {
+    if (args.length === 0) {
+        throw new Error(`Usage: ${cmdName} <name>`);
+    }
+    
+    const name = args[0];
+    const existingUser = await getUser(name);
+    if (!existingUser) {
+        throw new Error(`User ${name} not found`);
+    }
+    setUser(existingUser.name);
+    console.log(`User '${name} has been set`);
+};
+
 
 export async function handlerGetUsers() {
     const config = readConfig();
@@ -66,6 +71,13 @@ export async function handlerGetUsers() {
     }
 }
 
+export type UserCommandHandler = (
+    cmdName: string,
+    user: User,
+    ...args: string[]
+) => Promise<void> | void;
+
+//Feed commands---------------------------------------------------------------
 export async function handlerAgg(_: string) {
     const feedURL = "https://www.wagslane.dev/index.xml";
 
@@ -94,6 +106,9 @@ export async function handlerAddFeed(cmdName: string, ...args: string[]) {
         throw new Error("Failed to create feed");
     }
 
+    const feedFollow = await createFeedFollows(user.id, feed.id);
+    printFeedFollows(user.name, feed.name);
+
     console.log("Feed created successfully:");
     printFeed(feed, user);
 }
@@ -116,4 +131,55 @@ function printFeed(feed: Feed, user: User) {
     console.log(`* name:          ${feed.name}`);
     console.log(`* URL:           ${feed.url}`);
     console.log(`* User:          ${user.name}`);
+}
+
+//FeedFollows Commands-----------------------------------------------------
+export async function handlerFollow(cmdName: string, user: User,  ...args: string[]) {
+    if (args.length !== 1) {
+        throw new Error(`Usage: ${cmdName} <feed_url>`);
+    }
+
+    const feedURL = args[0];
+    const feed = await getFeedByURL(feedURL);
+    if (!feed) {
+        throw new Error(`Feed ${feedURL} not found`);
+    }
+
+    const ffRow = await createFeedFollows(user.id, feed.id);
+
+    console.log(`Feed follow created:`);
+    printFeedFollows(ffRow.userName, ffRow.feedName)
+}
+
+export async function handlerListFeedFollows(_: string, user: User) {
+    const feedFollows = await getFeedFollowsForUser(user.id);
+    if (feedFollows.length === 0) {
+        console.log("No feed follows for this user");
+        return;
+    }
+
+    console.log(`Feed follows for user ${user.name}:`);
+    for (let ff of feedFollows) {
+        console.log(`* ${ff.feedName}`);
+    }
+}
+
+export async function handlerUnfollow(cmdName: string, user: User, ...args: string[]) {
+    if (args.length !== 1) {
+        throw new Error(`Usage: ${cmdName} <feed_url>`);
+    }
+
+    const url = args[0];
+    const feed = await getFeedByURL(url);
+    if (!feed) {
+        throw new Error(`Feed ${url} not found`);
+    }
+
+    await deleteByUserAndURL(user.id, feed.id);
+    console.log(`${user.name} unfollowed ${feed.name}`);
+}
+
+function printFeedFollows(username: string, feedname: string) {
+    console.log(`* User:         ${username}`);
+    console.log(`* Feed:         ${feedname}`);
 }
